@@ -7,18 +7,23 @@ import { ContributionGraph } from "@/components/ContributionGraph";
 import { RepositoryGrid } from "@/components/RepositoryGrid";
 import { VibeCheckDrawer } from "@/components/VibeCheckDrawer";
 import { PortfolioChatbot } from "@/components/PortfolioChatbot";
+import { DotGridBackground } from "@/components/react-bits/DotGridBackground";
 import { VibeCheckResult } from "@/services/vibecheck.service";
-import { Loader2, AlertTriangle, RefreshCw } from "lucide-react";
+import { AlertTriangle, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
+
+// Skeleton components
+function SkeletonBlock({ className }: { className: string }) {
+  return <div className={`animate-pulse bg-zinc-900/60 border border-zinc-800/60 rounded-2xl ${className}`} />;
+}
 
 export default function DashboardPage() {
-  const [username, setUsername] = useState<string>("shadcn");
+  const [username, setUsername] = useState<string>("kavya020805");
   const [portfolioData, setPortfolioData] = useState<any>(null);
   const [cacheStatus, setCacheStatus] = useState<"HIT" | "MISS" | null>(null);
   const [cachedAt, setCachedAt] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Vibe Check modal & result state
   const [isVibeCheckOpen, setIsVibeCheckOpen] = useState<boolean>(false);
   const [vibeCheckResult, setVibeCheckResult] = useState<VibeCheckResult | null>(null);
 
@@ -27,9 +32,7 @@ export default function DashboardPage() {
       setIsLoading(true);
       setError(null);
       try {
-        const url = `/api/portfolio/${encodeURIComponent(targetUser)}${
-          forceRefresh ? "?refresh=true" : ""
-        }`;
+        const url = `/api/portfolio/${encodeURIComponent(targetUser)}${forceRefresh ? "?refresh=true" : ""}`;
         const res = await fetch(url);
         const data = await res.json();
 
@@ -38,17 +41,27 @@ export default function DashboardPage() {
           setCacheStatus(data.cacheStatus);
           setCachedAt(data.cachedAt);
 
-          // Restore saved Vibe Check score from SQLite cache if available
           if (data.data.userSettings?.last_match_details) {
             setVibeCheckResult(data.data.userSettings.last_match_details);
           } else {
             setVibeCheckResult(null);
           }
+
+          // Toast notification for cache status
+          if (data.cacheStatus === "HIT") {
+            toast.success("Loaded from SQLite cache", {
+              description: `Cached profile for @${targetUser} served in <5ms`,
+            });
+          } else {
+            toast.success("Fetched live from GitHub API", {
+              description: `Profile for @${targetUser} synced & cached to SQLite`,
+            });
+          }
         } else {
-          setError(data.error || "Failed to load GitHub portfolio data.");
+          setError(data.error || "Failed to load portfolio data.");
         }
       } catch (err: any) {
-        setError(err.message || "Network error loading portfolio data.");
+        setError(err.message || "Network error.");
       } finally {
         setIsLoading(false);
       }
@@ -60,17 +73,13 @@ export default function DashboardPage() {
     fetchPortfolio(username, false);
   }, [username, fetchPortfolio]);
 
-  const handleSearch = (newUsername: string) => {
-    setUsername(newUsername);
-  };
-
-  const handleForceSync = () => {
-    fetchPortfolio(username, true);
-  };
+  const handleSearch = (newUsername: string) => setUsername(newUsername);
+  const handleForceSync = () => fetchPortfolio(username, true);
 
   return (
-    <div className="min-h-screen bg-[#090d16] text-slate-100 flex flex-col">
-      {/* Top Navbar */}
+    <div className="min-h-screen bg-zinc-950 text-zinc-50 flex flex-col">
+      <DotGridBackground />
+
       <Navbar
         currentUsername={username}
         cacheStatus={cacheStatus}
@@ -81,75 +90,71 @@ export default function DashboardPage() {
         onOpenVibeCheck={() => setIsVibeCheckOpen(true)}
       />
 
-      {/* Main Dashboard Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        {/* Error Alert */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        {/* Error */}
         {error && (
-          <div className="p-4 rounded-xl bg-rose-950/40 border border-rose-800/80 text-rose-300 flex items-center justify-between gap-3 text-xs">
+          <div className="p-4 rounded-xl bg-red-950/30 border border-red-800/40 text-red-300 flex items-center justify-between gap-3 text-[13px]">
             <div className="flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+              <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
               <span>{error}</span>
             </div>
             <button
               onClick={() => fetchPortfolio(username, true)}
-              className="flex items-center gap-1 font-semibold text-white px-2 py-1 rounded bg-rose-900/60 hover:bg-rose-900 transition"
+              className="flex items-center gap-1 font-medium text-white px-2 py-1 rounded bg-red-900/40 hover:bg-red-900/60 transition text-[12px]"
             >
               <RefreshCw className="w-3 h-3" /> Retry
             </button>
           </div>
         )}
 
-        {/* Loading Skeleton */}
+        {/* Skeleton Loading */}
         {isLoading && !portfolioData && (
-          <div className="space-y-6 animate-pulse">
-            <div className="h-44 rounded-2xl bg-slate-900/60 border border-slate-800" />
-            <div className="h-56 rounded-2xl bg-slate-900/60 border border-slate-800" />
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="h-40 rounded-2xl bg-slate-900/60 border border-slate-800" />
-              <div className="h-40 rounded-2xl bg-slate-900/60 border border-slate-800" />
-              <div className="h-40 rounded-2xl bg-slate-900/60 border border-slate-800" />
+          <div className="space-y-6">
+            <SkeletonBlock className="h-48" />
+            <SkeletonBlock className="h-52" />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <SkeletonBlock className="h-44" />
+              <SkeletonBlock className="h-44" />
+              <SkeletonBlock className="h-44" />
             </div>
           </div>
         )}
 
-        {/* Loaded Portfolio Views */}
+        {/* Dashboard Content */}
         {portfolioData && (
           <>
-            {/* 1. Profile Header with Top Languages Recharts Pie and Vibe Check Badge */}
             <ProfileHeader
               user={portfolioData.user}
               vibeCheckResult={vibeCheckResult}
               onOpenVibeCheck={() => setIsVibeCheckOpen(true)}
             />
-
-            {/* 2. 52-Week Contribution Heatmap Grid and Streaks */}
             <ContributionGraph contributions={portfolioData.user.contributions} />
-
-            {/* 3. Filterable Repository Showcase Grid */}
             <RepositoryGrid repositories={portfolioData.repositories} />
           </>
         )}
       </main>
 
-      {/* Vibe Check Modal / Drawer */}
+      {/* Vibe Check Drawer */}
       <VibeCheckDrawer
         isOpen={isVibeCheckOpen}
         onClose={() => setIsVibeCheckOpen(false)}
         username={username}
         initialResult={vibeCheckResult}
-        onResultUpdated={(newRes) => setVibeCheckResult(newRes)}
+        onResultUpdated={(newRes) => {
+          setVibeCheckResult(newRes);
+          toast.success(`Vibe Check: ${newRes.matchPercentage}% Match`, {
+            description: newRes.badgeLabel,
+          });
+        }}
       />
 
-      {/* Floating Ask My Portfolio Chatbot Widget */}
+      {/* Chatbot */}
       <PortfolioChatbot username={username} />
 
       {/* Footer */}
-      <footer className="border-t border-slate-800/80 bg-slate-950/40 py-6 text-center text-xs text-slate-500">
-        <p>
-          GitPulse • Built with Next.js 14, TypeScript, SQLite (<code className="text-emerald-400">better-sqlite3</code>), Recharts & Tailwind CSS
-        </p>
+      <footer className="border-t border-zinc-800/60 py-6 text-center text-[11px] text-zinc-600 font-mono">
+        GitPulse · Next.js 14 · TypeScript · SQLite (better-sqlite3) · Recharts · Tailwind CSS
       </footer>
     </div>
   );
 }
-

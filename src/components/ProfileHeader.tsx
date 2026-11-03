@@ -1,10 +1,14 @@
 "use client";
 
 import React from "react";
-import { Star, GitFork, Users, BookOpen, ExternalLink, Sparkles, CheckCircle2 } from "lucide-react";
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
+import { Star, GitFork, Users, BookOpen, ExternalLink, Sparkles } from "lucide-react";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Label } from "recharts";
+import { motion } from "framer-motion";
 import { LanguageStat } from "@/services/analytics.service";
 import { VibeCheckResult } from "@/services/vibecheck.service";
+import { BlurText } from "./react-bits/BlurText";
+import { CountUp } from "./react-bits/CountUp";
+import { DecryptedText } from "./react-bits/DecryptedText";
 
 interface ProfileHeaderProps {
   user: {
@@ -23,210 +27,221 @@ interface ProfileHeaderProps {
   onOpenVibeCheck: () => void;
 }
 
-export function ProfileHeader({
-  user,
-  vibeCheckResult,
-  onOpenVibeCheck,
-}: ProfileHeaderProps) {
-  const matchScore = vibeCheckResult?.matchPercentage ?? null;
+// Custom glassmorphic tooltip
+const CustomTooltip = ({ active, payload }: any) => {
+  if (!active || !payload?.length) return null;
+  const data = payload[0];
+  return (
+    <div className="bg-zinc-950/90 border border-zinc-800 px-3 py-2 rounded-lg shadow-xl text-xs font-mono">
+      <div className="flex items-center gap-2">
+        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: data.payload.color }} />
+        <span className="text-zinc-200 font-medium">{data.name}</span>
+      </div>
+      <p className="text-zinc-400 mt-0.5">{data.value.toFixed(1)}% share</p>
+    </div>
+  );
+};
 
-  const getBadgeStyle = (score: number) => {
-    if (score >= 75) {
-      return {
-        bg: "bg-emerald-950/60 border-emerald-500/50 text-emerald-300 shadow-emerald-900/30",
-        ring: "ring-emerald-500/40",
-        text: "text-emerald-400",
-      };
-    }
-    if (score >= 50) {
-      return {
-        bg: "bg-amber-950/60 border-amber-500/50 text-amber-300 shadow-amber-900/30",
-        ring: "ring-amber-500/40",
-        text: "text-amber-400",
-      };
-    }
-    return {
-      bg: "bg-rose-950/60 border-rose-500/50 text-rose-300 shadow-rose-900/30",
-      ring: "ring-rose-500/40",
-      text: "text-rose-400",
-    };
+export function ProfileHeader({ user, vibeCheckResult, onOpenVibeCheck }: ProfileHeaderProps) {
+  const matchScore = vibeCheckResult?.matchPercentage ?? null;
+  const primaryLang = user.top_languages?.[0];
+
+  const getBadgeColor = (score: number) => {
+    if (score >= 75) return { border: "border-emerald-500/50", text: "text-emerald-400", bg: "bg-emerald-950/40" };
+    if (score >= 50) return { border: "border-amber-500/50", text: "text-amber-400", bg: "bg-amber-950/40" };
+    return { border: "border-rose-500/50", text: "text-rose-400", bg: "bg-rose-950/40" };
   };
 
-  const badgeStyle = matchScore !== null ? getBadgeStyle(matchScore) : null;
+  const badgeStyle = matchScore !== null ? getBadgeColor(matchScore) : null;
 
   return (
-    <div className="w-full bg-slate-900/60 border border-slate-800/80 rounded-2xl p-6 sm:p-8 backdrop-blur shadow-xl relative overflow-hidden">
-      {/* Decorative background glow */}
-      <div className="absolute -top-24 -left-24 w-72 h-72 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-24 -right-24 w-72 h-72 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
-
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative z-10">
-        {/* Left Column: Avatar, Bio, Follower stats (7 cols) */}
-        <div className="lg:col-span-7 flex flex-col sm:flex-row items-start sm:items-center gap-6">
-          <div className="relative group shrink-0">
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: "easeOut" }}
+      className="w-full glass-card p-6 sm:p-8 relative overflow-hidden"
+    >
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start relative z-10">
+        {/* Left: Profile Info (7 cols) */}
+        <div className="lg:col-span-7 flex flex-col sm:flex-row items-start gap-5">
+          {/* Avatar */}
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.1, duration: 0.4 }}
+            className="shrink-0"
+          >
             <img
               src={user.avatar_url || `https://github.com/${user.username}.png`}
               alt={user.name || user.username}
-              className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl object-cover ring-2 ring-slate-700/80 shadow-2xl transition duration-300 group-hover:scale-105"
+              className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover ring-1 ring-zinc-700/80 shadow-2xl"
             />
-            <div className="absolute -bottom-2 -right-2 bg-slate-900 p-1 rounded-full border border-slate-700 shadow">
-              <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-            </div>
-          </div>
+          </motion.div>
 
-          <div className="flex-1 min-w-0">
-            <div className="flex flex-wrap items-center gap-2.5">
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight truncate">
-                {user.name || user.username}
+          <div className="flex-1 min-w-0 space-y-3">
+            {/* Name + Username */}
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-zinc-50 tracking-tight">
+                <BlurText text={user.name || user.username} />
               </h1>
               <a
                 href={`https://github.com/${user.username}`}
                 target="_blank"
                 rel="noreferrer"
-                className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 flex items-center gap-1 transition"
+                className="inline-flex items-center gap-1 mt-1 text-xs font-mono text-zinc-400 hover:text-zinc-200 transition"
               >
                 @{user.username}
-                <ExternalLink className="w-3 h-3 text-slate-400" />
+                <ExternalLink className="w-3 h-3" />
               </a>
             </div>
 
-            <p className="mt-2 text-sm text-slate-300 leading-relaxed max-w-xl line-clamp-3">
-              {user.bio || "Full-stack engineer crafting scalable web applications, backend architectures, and open-source tooling."}
+            {/* Bio */}
+            <p className="text-[13px] text-zinc-400 leading-relaxed max-w-xl line-clamp-2">
+              {user.bio || "Building modern software at the intersection of performance, design, and developer experience."}
             </p>
 
-            {/* Quick Metrics Bar */}
-            <div className="mt-4 flex flex-wrap items-center gap-4 text-xs font-medium text-slate-400">
-              <div className="flex items-center gap-1.5 bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-800 text-slate-300">
-                <Users className="w-3.5 h-3.5 text-slate-400" />
-                <span>
-                  <strong className="text-white">{user.followers}</strong> followers
-                </span>
-                <span className="text-slate-600">•</span>
-                <span>
-                  <strong className="text-white">{user.following}</strong> following
-                </span>
-              </div>
-
-              <div className="flex items-center gap-1.5 bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-800 text-amber-300">
-                <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                <span className="text-slate-300">Total Stars:</span>
-                <strong className="text-white font-bold">{user.total_stars}</strong>
-              </div>
-
-              <div className="flex items-center gap-1.5 bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-800 text-cyan-300">
-                <GitFork className="w-3.5 h-3.5 text-cyan-400" />
-                <span className="text-slate-300">Forks:</span>
-                <strong className="text-white font-bold">{user.total_forks}</strong>
-              </div>
-
-              <div className="flex items-center gap-1.5 bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-800 text-slate-300">
-                <BookOpen className="w-3.5 h-3.5 text-slate-400" />
-                <span>
-                  <strong className="text-white">{user.public_repos}</strong> repos
-                </span>
-              </div>
+            {/* Stats Row */}
+            <div className="flex flex-wrap items-center gap-2">
+              <StatPill icon={<Users className="w-3 h-3 text-zinc-500" />} label="followers">
+                <CountUp target={user.followers} className="font-semibold text-zinc-100" />
+              </StatPill>
+              <StatPill icon={<Star className="w-3 h-3 text-amber-400/80" />} label="stars">
+                <CountUp target={user.total_stars} className="font-semibold text-zinc-100" />
+              </StatPill>
+              <StatPill icon={<GitFork className="w-3 h-3 text-cyan-400/80" />} label="forks">
+                <CountUp target={user.total_forks} className="font-semibold text-zinc-100" />
+              </StatPill>
+              <StatPill icon={<BookOpen className="w-3 h-3 text-zinc-500" />} label="repos">
+                <CountUp target={user.public_repos} className="font-semibold text-zinc-100" />
+              </StatPill>
             </div>
 
-            {/* Prominent Vibe Check Compatibility Badge */}
-            <div className="mt-4 pt-3 border-t border-slate-800/60 flex items-center gap-3">
+            {/* Vibe Check Badge */}
+            <div className="pt-2">
               {badgeStyle && matchScore !== null ? (
-                <div
+                <motion.button
                   onClick={onOpenVibeCheck}
-                  className={`cursor-pointer inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-xl border ${badgeStyle.bg} shadow-lg transition hover:brightness-110`}
+                  initial={{ scale: 0.95, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ delay: 0.3 }}
+                  className={`inline-flex items-center gap-2.5 px-3.5 py-2 rounded-xl border ${badgeStyle.border} ${badgeStyle.bg} transition hover:brightness-110 cursor-pointer`}
                 >
                   <Sparkles className="w-4 h-4 text-emerald-400" />
-                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-300">
-                    JD Match Score:
+                  <span className="text-[11px] font-medium text-zinc-400 uppercase tracking-wider">
+                    JD Match
                   </span>
-                  <span className={`text-sm font-extrabold ${badgeStyle.text}`}>
-                    {matchScore}%
+                  <span className={`text-base font-bold font-mono tabular-nums ${badgeStyle.text}`}>
+                    <DecryptedText text={`${matchScore}%`} speed={30} />
                   </span>
-                  <span className="text-xs font-medium text-slate-300 border-l border-slate-700/60 pl-2">
+                  <span className="text-[11px] text-zinc-500 border-l border-zinc-700/60 pl-2">
                     {vibeCheckResult?.badgeLabel}
                   </span>
-                </div>
+                </motion.button>
               ) : (
                 <button
                   onClick={onOpenVibeCheck}
-                  className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-xl bg-gradient-to-r from-emerald-600/90 to-teal-600/90 hover:from-emerald-500 hover:to-teal-500 text-white shadow-md shadow-emerald-950 transition"
+                  className="inline-flex items-center gap-2 px-3 py-1.5 text-[12px] font-medium rounded-xl bg-zinc-800/80 hover:bg-zinc-800 text-zinc-300 border border-zinc-700/60 hover:border-emerald-500/40 transition"
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                  Run "Vibe Check" with Target Job Description
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                  Run Vibe Check against a Job Description
                 </button>
               )}
             </div>
           </div>
         </div>
 
-        {/* Right Column: Recharts Interactive Top Languages Donut Chart (5 cols) */}
-        <div className="lg:col-span-5 flex flex-col items-center justify-center bg-slate-950/40 p-4 rounded-xl border border-slate-800/60">
-          <div className="w-full flex items-center justify-between mb-2">
-            <h3 className="text-xs font-semibold tracking-wide uppercase text-slate-400">
-              Top Languages Breakdown
-            </h3>
-            <span className="text-[11px] text-slate-500">By Repository Share</span>
+        {/* Right: Donut Chart (5 cols) */}
+        <div className="lg:col-span-5">
+          <div className="bg-zinc-950/60 p-5 rounded-xl border border-zinc-800/60">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-[11px] font-semibold tracking-widest uppercase text-zinc-500">
+                Language Distribution
+              </h3>
+              <span className="text-[10px] font-mono text-zinc-600">by repository</span>
+            </div>
+
+            {user.top_languages && user.top_languages.length > 0 ? (
+              <div className="flex flex-col sm:flex-row items-center gap-5">
+                {/* Donut */}
+                <div className="w-[160px] h-[160px] relative shrink-0">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Tooltip content={<CustomTooltip />} />
+                      <Pie
+                        data={user.top_languages}
+                        dataKey="percentage"
+                        nameKey="language"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={55}
+                        outerRadius={75}
+                        paddingAngle={3}
+                        strokeWidth={0}
+                      >
+                        {user.top_languages.map((entry, index) => (
+                          <Cell key={index} fill={entry.color} className="transition-opacity hover:opacity-80" />
+                        ))}
+                        <Label
+                          content={() => (
+                            <text x="50%" y="46%" textAnchor="middle" dominantBaseline="middle">
+                              <tspan
+                                x="50%"
+                                className="fill-zinc-100 text-[15px] font-semibold"
+                                style={{ fontFamily: "'Inter', sans-serif" }}
+                              >
+                                {primaryLang?.language || "—"}
+                              </tspan>
+                              <tspan
+                                x="50%"
+                                dy="16"
+                                className="fill-zinc-500 text-[11px]"
+                                style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                              >
+                                {primaryLang ? `${primaryLang.percentage}%` : ""}
+                              </tspan>
+                            </text>
+                          )}
+                        />
+                      </Pie>
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+
+                {/* Legend */}
+                <div className="flex-1 w-full space-y-1.5">
+                  {user.top_languages.map((item, idx) => (
+                    <div key={idx} className="flex items-center justify-between text-[12px] group">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                        <span className="text-zinc-300 group-hover:text-zinc-100 transition truncate">
+                          {item.language}
+                        </span>
+                      </div>
+                      <span className="font-mono text-[11px] text-zinc-500 tabular-nums ml-3">
+                        {item.percentage}%
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="h-32 flex items-center justify-center text-xs text-zinc-600">
+                No language data available
+              </div>
+            )}
           </div>
-
-          {user.top_languages && user.top_languages.length > 0 ? (
-            <div className="w-full flex flex-col sm:flex-row items-center gap-4">
-              {/* Donut Chart */}
-              <div className="w-36 h-36 relative shrink-0">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Tooltip
-                      formatter={(val: any, name: any) => [`${val}%`, name]}
-                      contentStyle={{
-                        backgroundColor: "#0f172a",
-                        borderColor: "#334155",
-                        borderRadius: "8px",
-                        fontSize: "12px",
-                        color: "#f8fafc",
-                      }}
-                      itemStyle={{ color: "#38bdf8" }}
-                    />
-                    <Pie
-                      data={user.top_languages}
-                      dataKey="percentage"
-                      nameKey="language"
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={36}
-                      outerRadius={56}
-                      paddingAngle={3}
-                      stroke="none"
-                    >
-                      {user.top_languages.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-
-              {/* Legend */}
-              <div className="flex-1 w-full grid grid-cols-2 gap-x-2 gap-y-1.5 text-xs">
-                {user.top_languages.map((item, idx) => (
-                  <div key={idx} className="flex items-center gap-1.5 truncate">
-                    <span
-                      className="w-2.5 h-2.5 rounded-full shrink-0"
-                      style={{ backgroundColor: item.color }}
-                    />
-                    <span className="font-medium text-slate-200 truncate">{item.language}</span>
-                    <span className="text-slate-500 text-[11px] ml-auto">
-                      {item.percentage}%
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="h-28 flex items-center justify-center text-xs text-slate-500">
-              No language data available
-            </div>
-          )}
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
+function StatPill({ icon, label, children }: { icon: React.ReactNode; label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-zinc-900/80 border border-zinc-800/60 text-[11px]">
+      {icon}
+      {children}
+      <span className="text-zinc-500">{label}</span>
+    </div>
+  );
+}

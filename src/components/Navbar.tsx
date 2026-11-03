@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
-import { Search, Database, RefreshCw, Zap, Sparkles } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Search, Database, RefreshCw, Zap, Sparkles, Command } from "lucide-react";
+import { toast } from "sonner";
 
 interface NavbarProps {
   currentUsername: string;
@@ -23,6 +24,24 @@ export function Navbar({
   onOpenVibeCheck,
 }: NavbarProps) {
   const [searchInput, setSearchInput] = useState(currentUsername);
+  const [isFocused, setIsFocused] = useState(false);
+
+  useEffect(() => {
+    setSearchInput(currentUsername);
+  }, [currentUsername]);
+
+  // Keyboard shortcut: Cmd/Ctrl+K to focus search
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        const input = document.getElementById("gitpulse-search") as HTMLInputElement;
+        input?.focus();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,90 +57,93 @@ export function Navbar({
       if (diffSec < 60) return `${diffSec}s ago`;
       const diffMin = Math.floor(diffSec / 60);
       if (diffMin < 60) return `${diffMin}m ago`;
-      const diffHours = Math.floor(diffMin / 60);
-      return `${diffHours}h ago`;
+      return `${Math.floor(diffMin / 60)}h ago`;
     } catch {
       return "recently";
     }
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+    <header className="sticky top-0 z-50 w-full border-b border-zinc-800/80 bg-zinc-950/80 backdrop-blur-xl">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between gap-4">
         {/* Logo */}
-        <div className="flex items-center gap-3">
-          <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 via-teal-500 to-cyan-500 text-white shadow-lg shadow-emerald-500/20">
-            <Zap className="w-5 h-5 text-slate-950 fill-current" />
+        <div className="flex items-center gap-2.5 shrink-0">
+          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg shadow-emerald-500/20">
+            <Zap className="w-4 h-4 text-zinc-950" strokeWidth={2.5} />
           </div>
-          <div>
-            <div className="flex items-center gap-1.5">
-              <span className="font-extrabold text-lg tracking-tight bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
-                GitPulse
-              </span>
-              <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                v2.0
-              </span>
-            </div>
-            <p className="text-xs text-slate-400 hidden sm:block">AI-Powered Developer Portfolio</p>
-          </div>
+          <span className="font-semibold text-[15px] tracking-tight text-zinc-100">
+            GitPulse
+          </span>
         </div>
 
-        {/* Center: Search Username */}
-        <form onSubmit={handleSubmit} className="flex-1 max-w-md relative">
-          <div className="relative flex items-center">
-            <Search className="absolute left-3.5 w-4 h-4 text-slate-400" />
+        {/* Search */}
+        <form onSubmit={handleSubmit} className="flex-1 max-w-md">
+          <div className={`relative flex items-center transition-all duration-200 rounded-lg border ${isFocused ? "border-zinc-600 ring-1 ring-zinc-700" : "border-zinc-800"} bg-zinc-900/80`}>
+            <Search className="absolute left-3 w-3.5 h-3.5 text-zinc-500" />
             <input
+              id="gitpulse-search"
               type="text"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Enter GitHub username (e.g. shadcn, torvalds)..."
-              className="w-full pl-9 pr-20 py-1.5 text-sm bg-slate-900/90 text-slate-100 placeholder-slate-500 rounded-lg border border-slate-700/80 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all"
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
+              placeholder="Search GitHub username..."
+              className="w-full pl-9 pr-20 py-1.5 text-[13px] bg-transparent text-zinc-200 placeholder-zinc-500 focus:outline-none"
             />
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="absolute right-1 px-2.5 py-1 text-xs font-semibold rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition"
-            >
-              Analyze
-            </button>
+            <div className="absolute right-2 flex items-center gap-1.5">
+              <kbd className="hidden sm:flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono text-zinc-500 bg-zinc-800 rounded border border-zinc-700/80">
+                <Command className="w-2.5 h-2.5" />K
+              </kbd>
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="px-2 py-0.5 text-[11px] font-medium rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700/80 transition"
+              >
+                Go
+              </button>
+            </div>
           </div>
         </form>
 
-        {/* Right Actions: Cache Badge, Force Sync, Vibe Check */}
-        <div className="flex items-center gap-2.5">
-          {/* SQLite Cache Badge */}
+        {/* Right Actions */}
+        <div className="flex items-center gap-2">
+          {/* Cache Badge */}
           {cacheStatus && (
             <div
-              className={`hidden md:flex items-center gap-2 px-2.5 py-1 text-xs rounded-lg border ${
+              className={`hidden lg:flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-mono rounded-md border ${
                 cacheStatus === "HIT"
-                  ? "bg-emerald-950/40 border-emerald-800/60 text-emerald-300"
-                  : "bg-cyan-950/40 border-cyan-800/60 text-cyan-300"
+                  ? "bg-emerald-950/30 border-emerald-800/40 text-emerald-400"
+                  : "bg-cyan-950/30 border-cyan-800/40 text-cyan-400"
               }`}
             >
-              <Database className="w-3.5 h-3.5" />
+              <Database className="w-3 h-3" />
               <span>
                 {cacheStatus === "HIT"
-                  ? `SQLite Cache (${formatCachedTime(cachedAt)})`
-                  : "Live GitHub API"}
+                  ? `SQLite Cache · ${formatCachedTime(cachedAt)}`
+                  : "Live Fetch"}
               </span>
             </div>
           )}
 
-          {/* Force Sync Button */}
+          {/* Force Sync */}
           <button
-            onClick={onForceSync}
+            onClick={() => {
+              onForceSync();
+              toast("Forcing live sync from GitHub API...", {
+                icon: <RefreshCw className="w-4 h-4 text-cyan-400" />,
+              });
+            }}
             disabled={isLoading}
-            title="Bypass cache and force refresh from GitHub API"
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700/80 hover:border-slate-600 transition disabled:opacity-50"
+            title="Force refresh from GitHub"
+            className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/80 border border-transparent hover:border-zinc-700/60 transition disabled:opacity-40"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin text-emerald-400" : ""}`} />
-            <span className="hidden sm:inline">Force Sync</span>
+            <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin text-emerald-400" : ""}`} />
           </button>
 
-          {/* Vibe Check Button */}
+          {/* Vibe Check */}
           <button
             onClick={onOpenVibeCheck}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-sm shadow-emerald-900/40 transition"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium rounded-lg bg-emerald-600/90 hover:bg-emerald-500 text-white transition shadow-sm"
           >
             <Sparkles className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Vibe Check</span>
