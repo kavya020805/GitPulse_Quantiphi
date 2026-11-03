@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useSpring, useTransform, motion, useInView } from "framer-motion";
 
 interface CountUpProps {
@@ -13,15 +13,18 @@ interface CountUpProps {
 
 export function CountUp({
   target,
-  duration = 1.5,
+  duration = 1.2,
   className = "",
   prefix = "",
   suffix = "",
 }: CountUpProps) {
   const ref = useRef<HTMLSpanElement>(null);
-  const isInView = useInView(ref, { once: true, margin: "-50px" });
-  const spring = useSpring(0, { duration: duration * 1000 });
-  const display = useTransform(spring, (v) => `${prefix}${Math.round(v)}${suffix}`);
+  const isInView = useInView(ref, { once: true, margin: "-20px" });
+  const spring = useSpring(0, {
+    duration: duration * 1000,
+    bounce: 0,
+  });
+  const display = useTransform(spring, (v) => `${prefix}${Math.round(v).toLocaleString()}${suffix}`);
 
   useEffect(() => {
     if (isInView) {
@@ -30,7 +33,7 @@ export function CountUp({
   }, [isInView, spring, target]);
 
   return (
-    <motion.span ref={ref} className={`tabular-nums ${className}`}>
+    <motion.span ref={ref} className={`font-mono tabular-nums ${className}`}>
       {display}
     </motion.span>
   );

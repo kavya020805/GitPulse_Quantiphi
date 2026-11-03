@@ -13,17 +13,16 @@ interface DecryptedTextProps {
 export function DecryptedText({
   text,
   className = "",
-  speed = 40,
+  speed = 35,
   chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*",
 }: DecryptedTextProps) {
-  const [displayed, setDisplayed] = useState("");
+  const [displayed, setDisplayed] = useState(text);
   const ref = useRef<HTMLSpanElement>(null);
   const isInView = useInView(ref, { once: true });
-  const hasAnimated = useRef(false);
+  const prevTextRef = useRef(text);
 
   useEffect(() => {
-    if (!isInView || hasAnimated.current) return;
-    hasAnimated.current = true;
+    if (!isInView) return;
 
     let iteration = 0;
     const interval = setInterval(() => {
@@ -37,19 +36,23 @@ export function DecryptedText({
           })
           .join("")
       );
-      iteration += 1 / 3;
+
+      iteration += 1 / 2.5;
+
       if (iteration >= text.length) {
         setDisplayed(text);
         clearInterval(interval);
       }
     }, speed);
 
+    prevTextRef.current = text;
+
     return () => clearInterval(interval);
   }, [isInView, text, speed, chars]);
 
   return (
-    <span ref={ref} className={`font-mono ${className}`}>
-      {displayed || text}
+    <span ref={ref} className={`font-mono tabular-nums ${className}`}>
+      {displayed}
     </span>
   );
 }

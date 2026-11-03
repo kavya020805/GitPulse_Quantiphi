@@ -4,8 +4,11 @@ import * as schema from "./schema";
 import fs from "fs";
 import path from "path";
 
-// Ensure data directory exists
-const dbDir = path.resolve(process.cwd(), "data");
+// Determine SQLite directory: uses /tmp on Vercel production serverless, and ./data locally
+const dbDir = process.env.VERCEL
+  ? path.join("/tmp", "gitpulse")
+  : path.resolve(process.cwd(), "data");
+
 if (!fs.existsSync(dbDir)) {
   fs.mkdirSync(dbDir, { recursive: true });
 }
@@ -15,8 +18,12 @@ const dbPath = path.join(dbDir, "cache.sqlite");
 // Initialize Better-SQLite3 connection
 export const sqlite = new Database(dbPath);
 
-// Enable WAL mode for high concurrency & performance
-sqlite.pragma("journal_mode = WAL");
+// Enable WAL mode for high concurrency with graceful fallback
+try {
+  sqlite.pragma("journal_mode = WAL");
+} catch (e) {
+  console.warn("[SQLite] WAL mode not supported in this environment, using standard mode.");
+}
 
 // Initialize tables automatically on bootstrap
 sqlite.exec(`

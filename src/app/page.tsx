@@ -5,16 +5,21 @@ import { Navbar } from "@/components/Navbar";
 import { ProfileHeader } from "@/components/ProfileHeader";
 import { ContributionGraph } from "@/components/ContributionGraph";
 import { RepositoryGrid } from "@/components/RepositoryGrid";
+import { VibeCheckBentoCard } from "@/components/VibeCheckBentoCard";
 import { VibeCheckDrawer } from "@/components/VibeCheckDrawer";
 import { PortfolioChatbot } from "@/components/PortfolioChatbot";
-import { DotGridBackground } from "@/components/react-bits/DotGridBackground";
+import { Squares } from "@/components/react-bits/Squares";
 import { VibeCheckResult } from "@/services/vibecheck.service";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
-// Skeleton components
+// Skeleton loaders
 function SkeletonBlock({ className }: { className: string }) {
-  return <div className={`animate-pulse bg-zinc-900/60 border border-zinc-800/60 rounded-2xl ${className}`} />;
+  return (
+    <div
+      className={`animate-pulse bg-zinc-900/60 border border-white/[0.06] rounded-2xl ${className}`}
+    />
+  );
 }
 
 export default function DashboardPage() {
@@ -50,18 +55,18 @@ export default function DashboardPage() {
           // Toast notification for cache status
           if (data.cacheStatus === "HIT") {
             toast.success("Loaded from SQLite cache", {
-              description: `Cached profile for @${targetUser} served in <5ms`,
+              description: `Served @${targetUser} profile in <5ms`,
             });
           } else {
             toast.success("Fetched live from GitHub API", {
-              description: `Profile for @${targetUser} synced & cached to SQLite`,
+              description: `Profile for @${targetUser} synced & persisted to SQLite`,
             });
           }
         } else {
           setError(data.error || "Failed to load portfolio data.");
         }
       } catch (err: any) {
-        setError(err.message || "Network error.");
+        setError(err.message || "Network error communicating with backend.");
       } finally {
         setIsLoading(false);
       }
@@ -77,9 +82,17 @@ export default function DashboardPage() {
   const handleForceSync = () => fetchPortfolio(username, true);
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-50 flex flex-col">
-      <DotGridBackground />
+    <div className="relative min-h-screen bg-[#09090b] text-zinc-50 flex flex-col selection:bg-emerald-500/20 selection:text-emerald-300">
+      {/* Step 1: Ambient React Bits Squares Background Canvas */}
+      <Squares
+        direction="diagonal"
+        speed={0.4}
+        squareSize={44}
+        borderColor="rgba(255, 255, 255, 0.035)"
+        hoverFillColor="rgba(16, 185, 129, 0.08)"
+      />
 
+      {/* Navigation */}
       <Navbar
         currentUsername={username}
         cacheStatus={cacheStatus}
@@ -90,51 +103,73 @@ export default function DashboardPage() {
         onOpenVibeCheck={() => setIsVibeCheckOpen(true)}
       />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        {/* Error */}
+      {/* Main Asymmetric Bento Grid */}
+      <main className="relative z-10 flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        {/* Error Alert */}
         {error && (
-          <div className="p-4 rounded-xl bg-red-950/30 border border-red-800/40 text-red-300 flex items-center justify-between gap-3 text-[13px]">
+          <div className="p-4 rounded-2xl bg-red-950/30 border border-red-800/40 text-red-300 flex items-center justify-between gap-3 text-xs font-mono">
             <div className="flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
               <span>{error}</span>
             </div>
             <button
               onClick={() => fetchPortfolio(username, true)}
-              className="flex items-center gap-1 font-medium text-white px-2 py-1 rounded bg-red-900/40 hover:bg-red-900/60 transition text-[12px]"
+              className="flex items-center gap-1 font-medium text-white px-2.5 py-1 rounded-lg bg-red-900/50 hover:bg-red-900/80 transition"
             >
-              <RefreshCw className="w-3 h-3" /> Retry
+              <RefreshCw className="w-3 h-3" /> Retry Sync
             </button>
           </div>
         )}
 
-        {/* Skeleton Loading */}
+        {/* Skeleton Placeholders during Loading */}
         {isLoading && !portfolioData && (
           <div className="space-y-6">
-            <SkeletonBlock className="h-48" />
-            <SkeletonBlock className="h-52" />
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <SkeletonBlock className="h-44" />
-              <SkeletonBlock className="h-44" />
-              <SkeletonBlock className="h-44" />
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+              <SkeletonBlock className="lg:col-span-4 h-64" />
+              <SkeletonBlock className="lg:col-span-4 h-64" />
+              <SkeletonBlock className="lg:col-span-4 h-64" />
             </div>
+            <SkeletonBlock className="h-56" />
+            <SkeletonBlock className="h-64" />
           </div>
         )}
 
-        {/* Dashboard Content */}
+        {/* Dashboard Loaded Content */}
         {portfolioData && (
-          <>
-            <ProfileHeader
-              user={portfolioData.user}
-              vibeCheckResult={vibeCheckResult}
-              onOpenVibeCheck={() => setIsVibeCheckOpen(true)}
-            />
-            <ContributionGraph contributions={portfolioData.user.contributions} />
-            <RepositoryGrid repositories={portfolioData.repositories} />
-          </>
+          <div className="space-y-6">
+            {/* ─── ROW 1: 12-Column Asymmetric Bento Header ─── */}
+            <section aria-label="Profile and Metrics Bento Header">
+              <ProfileHeader
+                user={portfolioData.user}
+                vibeCheckResult={vibeCheckResult}
+                onOpenVibeCheck={() => setIsVibeCheckOpen(true)}
+              />
+            </section>
+
+            {/* ─── ROW 2: Full-Width Contribution Heatmap ─── */}
+            <section aria-label="Annual Contribution Activity">
+              <ContributionGraph contributions={portfolioData.user.contributions} />
+            </section>
+
+            {/* ─── ROW 3: Vibe Check Matcher Engine Bento Card ─── */}
+            <section aria-label="The Vibe Check Job Matcher">
+              <VibeCheckBentoCard
+                username={username}
+                result={vibeCheckResult}
+                onResultUpdated={(newRes) => setVibeCheckResult(newRes)}
+                onOpenDrawer={() => setIsVibeCheckOpen(true)}
+              />
+            </section>
+
+            {/* ─── ROW 4: Interactive Repository Grid ─── */}
+            <section aria-label="Repository Explorer">
+              <RepositoryGrid repositories={portfolioData.repositories} />
+            </section>
+          </div>
         )}
       </main>
 
-      {/* Vibe Check Drawer */}
+      {/* The Vibe Check Full Drawer (Modal for Pitch & Readme Snippet) */}
       <VibeCheckDrawer
         isOpen={isVibeCheckOpen}
         onClose={() => setIsVibeCheckOpen(false)}
@@ -142,18 +177,18 @@ export default function DashboardPage() {
         initialResult={vibeCheckResult}
         onResultUpdated={(newRes) => {
           setVibeCheckResult(newRes);
-          toast.success(`Vibe Check: ${newRes.matchPercentage}% Match`, {
+          toast.success(`Vibe Check: ${newRes.matchPercentage}% Compatibility`, {
             description: newRes.badgeLabel,
           });
         }}
       />
 
-      {/* Chatbot */}
+      {/* Portfolio Chatbot Agent grounded in SQLite */}
       <PortfolioChatbot username={username} />
 
-      {/* Footer */}
-      <footer className="border-t border-zinc-800/60 py-6 text-center text-[11px] text-zinc-600 font-mono">
-        GitPulse · Next.js 14 · TypeScript · SQLite (better-sqlite3) · Recharts · Tailwind CSS
+      {/* Obsidian Footer */}
+      <footer className="relative z-10 border-t border-white/[0.06] py-6 text-center text-[11px] text-zinc-400 font-mono">
+        GitPulse · Obsidian Bento Design · React Bits · Next.js 14 · SQLite (better-sqlite3)
       </footer>
     </div>
   );
