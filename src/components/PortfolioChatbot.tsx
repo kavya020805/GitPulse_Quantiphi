@@ -258,3 +258,4 @@ export function PortfolioChatbot({ username }: PortfolioChatbotProps) {
     </div>
   );
 }
+

@@ -1,8 +1,19 @@
 import { db } from "@/db";
 import { users, repositories, userSettings } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 import { saveChatMessage } from "./cache.service";
+
+/**
+ * Timeout wrapper to guarantee sub-6s response time even during external LLM outages
+ */
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number = 6000): Promise<T> {
+  let timer: any;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`API request timed out after ${timeoutMs}ms`)), timeoutMs);
+  });
+  return Promise.race([promise, timeoutPromise]).finally(() => clearTimeout(timer));
+}
 
 /**
  * Loads rich context from SQLite for a given developer
@@ -37,6 +48,7 @@ function loadPortfolioContext(username: string) {
 
 /**
  * Feature 1: "Ask My Portfolio" Conversational Assistant
+ * Uses Google GenAI Interactions API (gemini-3.8-flash) with robust server-side deterministic fallback
  */
 export async function generateChatResponse(
   username: string,
@@ -45,13 +57,11 @@ export async function generateChatResponse(
   const context = loadPortfolioContext(username);
   const normalizedUsername = username.toLowerCase().trim();
 
-  // Try Google Gemini 1.5 Flash first if API key is provided
+  // Try Google GenAI Interactions API (gemini-3.8-flash) first if API key is provided
   const apiKey = process.env.GEMINI_API_KEY?.trim();
   if (apiKey) {
     try {
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
+      const ai = new GoogleGenAI({ apiKey });
       const systemPrompt = `You are GitPulse AI, the official intelligent portfolio agent for the software developer @${username}.
 You have direct read access to their verified GitHub metrics and cached SQLite database.
 Answer the recruiter or hiring manager's query politely, authoritatively, and concisely.
@@ -70,23 +80,22 @@ DEVELOPER DATA:
 ${context.repos.map((r) => `  * ${r.name} (${r.language || "N/A"}, ${r.stargazers_count} stars): ${r.description || "No description"}`).join("\n")}
 `;
 
-      const chat = model.startChat({
-        history: [
-          { role: "user", parts: [{ text: "Hello! Who are you representing?" }] },
-          { role: "model", parts: [{ text: `Hi! I am the portfolio assistant for @${username}. I can answer questions about their projects, tech stack, and GitHub activity.` }] },
-        ],
-      });
+      const interaction = await withTimeout(
+        ai.interactions.create({
+          model: "gemini-3.8-flash",
+          input: `${systemPrompt}\n\nUSER QUESTION: ${userMessage}`,
+        }),
+        6000
+      );
 
-      const response = await chat.sendMessage(`${systemPrompt}\n\nUSER QUESTION: ${userMessage}`);
-      const reply = response.response.text();
-
-      // Persist in SQLite
-      saveChatMessage(normalizedUsername, "user", userMessage);
-      saveChatMessage(normalizedUsername, "assistant", reply);
-
-      return reply;
-    } catch (err) {
-      console.warn("[ChatbotService] Gemini call failed, falling back to deterministic engine:", err);
+      const reply = interaction.output_text?.trim();
+      if (reply) {
+        saveChatMessage(normalizedUsername, "user", userMessage);
+        saveChatMessage(normalizedUsername, "assistant", reply);
+        return reply;
+      }
+    } catch (err: any) {
+      console.warn("[ChatbotService] Gemini call failed, degrading to server deterministic engine:", err?.message || err);
     }
   }
 
@@ -150,9 +159,7 @@ export async function generateRecruiterPitch(
   const apiKey = process.env.GEMINI_API_KEY?.trim();
   if (apiKey) {
     try {
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
+      const ai = new GoogleGenAI({ apiKey });
       const prompt = `You are a career strategist. Draft a high-converting, professional 1-paragraph elevator pitch for candidate @${username} targeting the following Job Description:
 JD: "${jobDescription || "Full-Stack Engineer with focus on modern APIs, TypeScript, and scalable architecture"}"
 
@@ -168,14 +175,23 @@ Return a JSON with:
   "readmeSnippet": "A 3-line Markdown bio snippet with badges and metrics"
 }`;
 
-      const res = await model.generateContent(prompt);
-      const text = res.response.text();
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
+      const interaction = await withTimeout(
+        ai.interactions.create({
+          model: "gemini-3.8-flash",
+          input: `${prompt}\nRespond only with valid JSON.`,
+        }),
+        6000
+      );
+
+      const text = interaction.output_text?.trim();
+      if (text) {
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          return JSON.parse(jsonMatch[0]);
+        }
       }
-    } catch (e) {
-      console.warn("[PitchGenerator] Gemini failed, using deterministic generation:", e);
+    } catch (e: any) {
+      console.warn("[PitchGenerator] Gemini call failed, using deterministic generation:", e?.message || e);
     }
   }
 

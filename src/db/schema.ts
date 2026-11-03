@@ -55,3 +55,4 @@ export type User = typeof users.$inferSelect;
 export type Repository = typeof repositories.$inferSelect;
 export type UserSettings = typeof userSettings.$inferSelect;
 export type ChatHistory = typeof chatHistory.$inferSelect;
+

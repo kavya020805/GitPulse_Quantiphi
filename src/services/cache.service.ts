@@ -305,3 +305,4 @@ export function getChatHistory(username: string, limitCount: number = 20) {
     .all()
     .reverse();
 }
+

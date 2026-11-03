@@ -36,10 +36,10 @@ yarn-error.log*
 .env.production.local
 
 # SQLite data directory
-data/*.sqlite
-data/*.sqlite-journal
-*.sqlite
+data/*.sqlite*
+*.sqlite*
 *.sqlite-journal
+
 
 # TypeScript
 *.tsbuildinfo

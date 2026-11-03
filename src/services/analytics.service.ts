@@ -169,3 +169,4 @@ export function calculateStreakAnalytics(days: DailyContribution[]): Contributio
     longestStreak,
   };
 }
+

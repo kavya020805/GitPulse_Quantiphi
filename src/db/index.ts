@@ -69,3 +69,4 @@ sqlite.exec(`
 `);
 
 export const db = drizzle(sqlite, { schema });
+
